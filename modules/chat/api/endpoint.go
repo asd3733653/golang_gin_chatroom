@@ -18,88 +18,20 @@ func ChatRoomEndpoint(c *gin.Context) {
 	if port == "" {
 		port = "8080"
 	}
-	data := `
-	<!DOCTYPE html>
-	<html lang="zh-TW">
-	<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>簡單聊天室</title>
-	<style>
-		body {
-			font-family: Arial, sans-serif;
-			margin: 0;
-			padding: 0;
-		}
-		#chat-container {
-			width: 80%;
-			margin: 0 auto;
-			padding: 20px;
-		}
-		#messages {
-			border: 1px solid #ccc;
-			padding: 10px;
-			height: 300px;
-			overflow-y: scroll;
-		}
-		#input-container {
-			margin-top: 20px;
-		}
-	</style>
-	</head>
-	<body>
-	<div id="chat-container">
-		<div id="messages"></div>
-		<div id="input-container">
-			<img src='static/&user&.png' alt="your picture" width="20" height="20">
-			<input type="text" id="messageInput" placeholder="輸入訊息...">
-			<button onclick="sendMessage()">發送</button>
-		</div>
-	</div>
-	
-	<script>
-		const socket = new WebSocket("ws://" + window.location.hostname + ":&port&/ws");
 
-		// 監聽來自後端的訊息
-		socket.addEventListener("message", function (event) {
-			const messageContainer = document.getElementById("messages");
-			const message = JSON.parse(event.data);
-			const { username, messageText } = message;
-			const messageElement = document.createElement("div");
-
-			const imageElement = document.createElement("img");
-			imageElement.src = "static/" + username + ".png"; // 設定圖片路徑
-			imageElement.style.width = "20px"; // 設定圖片寬度，可依需求調整
-			imageElement.style.height = "20px"; // 設定圖片高度，可依需求調整
-			messageElement.appendChild(imageElement);
-			messageElement.appendChild(document.createTextNode(username + "：" + messageText));
-			
-			messageContainer.appendChild(messageElement);
-		});
-	
-		// 發送訊息到後端
-		function sendMessage() {
-			const messageInput = document.getElementById("messageInput");
-			const messageText = messageInput.value.trim();
-			if (messageText !== "") {
-				const message = {
-					username: "&user&",
-					messageText: messageText
-				};
-				socket.send(JSON.stringify(message));
-				messageInput.value = "";
-			}
-		}
-	</script>
-	</body>
-	</html>
-	`
-	data = strings.Replace(data, "&user&", user, -1)
-	data = strings.Replace(data, "&port&", port, -1)
-	c.Data(http.StatusOK, "chatroom.html", []byte(data))
+	// read home html template
+	templatePath := "chatRoom.html"
+	data, err := os.ReadFile("modules/chat/template/" + templatePath)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+	}
+	template := string(data)
+	template = strings.Replace(template, "&user&", user, -1)
+	template = strings.Replace(template, "&port&", port, -1)
+	c.Data(http.StatusOK, templatePath, []byte(template))
 }
 
-func ChatHandle(c *gin.Context) {
+func ChatWebSocket(c *gin.Context) {
 	ws, err := chat_service.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -134,5 +66,25 @@ func ChatHandle(c *gin.Context) {
 			break
 		}
 		chat_service.Broadcast <- msg
+	}
+}
+
+func HandleMessages() {
+	for {
+		msg := <-chat_service.Broadcast
+
+		// 將訊息添加到最近的聊天訊息中
+		chat_service.MessagesRecordMux.Lock()
+		chat_service.MessagesRecord = append(chat_service.MessagesRecord, msg)
+		chat_service.MessagesRecordMux.Unlock()
+
+		for client := range chat_service.Clients {
+			err := client.WriteJSON(msg)
+			if err != nil {
+				// 如果發送失敗，刪除該客戶端
+				client.Close()
+				delete(chat_service.Clients, client)
+			}
+		}
 	}
 }

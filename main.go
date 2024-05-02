@@ -6,12 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 	admin_end "github.com/jacob/modules/modules/admin/api"
 	chat_end "github.com/jacob/modules/modules/chat/api"
-	chat_service "github.com/jacob/modules/modules/chat/service"
 	filesystem_end "github.com/jacob/modules/modules/filesystem/api"
 	home_end "github.com/jacob/modules/modules/home/api"
 )
 
-// program entry pointＦ
+// program entry point
 func main() {
 	// defaut gin engine
 	server := gin.Default()
@@ -26,10 +25,11 @@ func main() {
 	server.GET("/admin", admin_end.AdminEndpoint)
 	server.GET("/admin/:username", admin_end.AdminUserEndpoint)
 
-	// websocket
-	server.GET("/ws", chat_end.ChatHandle)
+	// websocket endpoint
+	server.GET("/ws", chat_end.ChatWebSocket)
 
-	go chat_service.HandleMessages()
+	// message handle
+	go chat_end.HandleMessages()
 
 	err := server.Run(":8080")
 	if err != nil {
