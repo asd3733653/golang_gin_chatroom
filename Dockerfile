@@ -20,5 +20,7 @@ RUN go build -o main .
 # 告訴 Docker 執行該容器提供服務的端口號
 EXPOSE 8080
 
+ENV GIN_PORT=32161
+
 # 設置容器啟動後執行的命令
 CMD ["/app/main"]

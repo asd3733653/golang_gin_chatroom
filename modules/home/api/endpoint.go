@@ -7,6 +7,7 @@ import (
 )
 
 func HomeEndpoint(c *gin.Context) {
+	// html template
 	data := `
 	<!DOCTYPE html>
 	<html lang="zh-TW">

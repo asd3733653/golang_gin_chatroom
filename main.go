@@ -4,37 +4,32 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jacob/modules/modules/admin"
-	"github.com/jacob/modules/modules/chat"
-	"github.com/jacob/modules/modules/chatroom"
-	"github.com/jacob/modules/modules/filesystem"
-	"github.com/jacob/modules/modules/home"
-	"github.com/jacob/modules/modules/test"
+	admin_end "github.com/jacob/modules/modules/admin/api"
+	chat_end "github.com/jacob/modules/modules/chat/api"
+	chat_service "github.com/jacob/modules/modules/chat/service"
+	filesystem_end "github.com/jacob/modules/modules/filesystem/api"
+	home_end "github.com/jacob/modules/modules/home/api"
 )
 
+// program entry pointＦ
 func main() {
 	// defaut gin engine
 	server := gin.Default()
 
-	// static file
+	// static file path
 	server.Static("/static", "./static")
 
-	// test endpoint health endpoint
-	server.GET("/test", test.TestEndpoint)
-
-	// real module
-	server.GET("/", home.HomeEndpoint)
-	server.GET("/chatroom", chatroom.ChatRoomEndpoint)
-	server.GET("/admin", admin.AdminEndpoint)
-	server.GET("/admin/:username", admin.AdminUserEndpoint)
+	// modules endpoint
+	server.GET("/", home_end.HomeEndpoint)
+	server.POST("/upload", filesystem_end.UploadFileEndpoint)
+	server.GET("/chatroom", chat_end.ChatRoomEndpoint)
+	server.GET("/admin", admin_end.AdminEndpoint)
+	server.GET("/admin/:username", admin_end.AdminUserEndpoint)
 
 	// websocket
-	server.GET("/ws", chat.HandleConnections)
+	server.GET("/ws", chat_end.ChatHandle)
 
-	// function endpoint
-	server.POST("/upload", filesystem.UploadHandler)
-
-	go chat.HandleMessages()
+	go chat_service.HandleMessages()
 
 	err := server.Run(":8080")
 	if err != nil {

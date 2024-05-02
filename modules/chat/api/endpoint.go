@@ -1,14 +1,23 @@
-package chatroom
+package chat
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	chat_model "github.com/jacob/modules/modules/chat/model"
+	chat_service "github.com/jacob/modules/modules/chat/service"
 )
 
 func ChatRoomEndpoint(c *gin.Context) {
 	user := c.Query("user")
+	port := os.Getenv("GIN_PORT")
+	if port == "" {
+		port = "8080"
+	}
 	data := `
 	<!DOCTYPE html>
 	<html lang="zh-TW">
@@ -49,7 +58,7 @@ func ChatRoomEndpoint(c *gin.Context) {
 	</div>
 	
 	<script>
-		const socket = new WebSocket("ws://" + window.location.hostname + ":32161/ws");
+		const socket = new WebSocket("ws://" + window.location.hostname + ":&port&/ws");
 
 		// 監聽來自後端的訊息
 		socket.addEventListener("message", function (event) {
@@ -86,5 +95,44 @@ func ChatRoomEndpoint(c *gin.Context) {
 	</html>
 	`
 	data = strings.Replace(data, "&user&", user, -1)
+	data = strings.Replace(data, "&port&", port, -1)
 	c.Data(http.StatusOK, "chatroom.html", []byte(data))
+}
+
+func ChatHandle(c *gin.Context) {
+	ws, err := chat_service.Upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer ws.Close()
+
+	chat_service.Clients[ws] = true
+
+	// 將最近的聊天訊息發送給新連接的客戶端
+	chat_service.MessagesRecordMux.Lock()
+	start := 0
+	if len(chat_service.MessagesRecord) > 10 {
+		start = len(chat_service.MessagesRecord) - 10
+	}
+	print(start)
+	for _, msg := range chat_service.MessagesRecord[start:] {
+		err := ws.WriteJSON(msg)
+		if err != nil {
+			log.Println("無法發送訊息給客戶端:", err)
+			break
+		}
+	}
+	chat_service.MessagesRecordMux.Unlock()
+
+	for {
+		var msg chat_model.Message
+		msg.Timestamp = time.Now()
+		err := ws.ReadJSON(&msg)
+		if err != nil {
+			delete(chat_service.Clients, ws)
+			break
+		}
+		chat_service.Broadcast <- msg
+	}
 }
