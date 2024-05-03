@@ -4,6 +4,11 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+
+	// bootstrap
+	"github.com/jacob/modules/modules/bootstrap/middleware"
+
+	// endpoint
 	admin_end "github.com/jacob/modules/modules/admin/api"
 	chat_end "github.com/jacob/modules/modules/chat/api"
 	filesystem_end "github.com/jacob/modules/modules/filesystem/api"
@@ -14,6 +19,9 @@ import (
 func main() {
 	// defaut gin engine
 	server := gin.Default()
+
+	// do something ..
+	server.Use(middleware.Middleware())
 
 	// static file path
 	server.Static("/static", "./static")
