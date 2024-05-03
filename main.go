@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	// bootstrap
+	"github.com/jacob/modules/modules/bootstrap/config"
 	"github.com/jacob/modules/modules/bootstrap/middleware"
 
 	// endpoint
@@ -20,8 +21,11 @@ func main() {
 	// defaut gin engine
 	server := gin.Default()
 
+	// config
+	config := config.ConfigInit()
+
 	// do something ..
-	server.Use(middleware.Middleware())
+	server.Use(middleware.Middleware(&config))
 
 	// static file path
 	server.Static("/static", "./static")

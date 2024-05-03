@@ -11,6 +11,8 @@ ADD . /app
 # 設置當前的工作目錄為 /app 目錄
 WORKDIR /app
 
+COPY .env .env
+
 # 下載並安裝依賴
 RUN go mod download
 
