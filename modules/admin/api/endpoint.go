@@ -12,7 +12,7 @@ import (
 )
 
 func AdminEndpoint(c *gin.Context) {
-	// 定義 AdminQuery 來接收查詢條件
+	// define AdminQuery mapper 查詢物件
 	var query admin_model.AdminQuery
 
 	// 解析用戶輸入的查詢條件
